@@ -337,6 +337,9 @@ class DevicesTab(shared.TabData):
                         effects_index = index
                     continue
 
+                if option.hidden:
+                    continue
+
                 widgets.append(self._create_row_control(option))
 
             # Controls for effects, its parameters and colours

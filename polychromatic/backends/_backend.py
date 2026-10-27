@@ -405,6 +405,10 @@ class Backend(BackendBase):
             # Full path using self.get_icon() - usually from {data}/img/options/
             self.icon = ""
 
+            # Should the device page hide this option for now? For example, an
+            # option that only applies while a particular effect is active.
+            self.hidden = False
+
             # ------ The following depend on the option ------
             # Is this option currently selected?
             self.active = False
