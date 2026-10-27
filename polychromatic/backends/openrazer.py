@@ -245,6 +245,10 @@ class OpenRazerBackend(Backend):
             if effects:
                 zone.options += effects
 
+            wave_speed = self._get_wave_speed_option(rdevice, zone)
+            if wave_speed:
+                zone.options.append(wave_speed)
+
         workarounds = self._get_workaround_options(rdevice)
         if workarounds:
             # Remove existing EffectOption(s) from main zone
@@ -727,6 +731,50 @@ class OpenRazerBackend(Backend):
 
         # Device does not support this option
         return None
+
+    def _get_wave_speed_option(self, rdevice, zone):
+        """
+        Returns a Backend.SliderOption for the speed of the wave effect,
+        or None if the device doesn't support changing it.
+
+        OpenRazer takes the speed as a byte, where lower is faster. The slider
+        maps 0-100% to 0xA0 (slowest) to 0x08 (fastest). The driver's default
+        of 0x28 is 79%.
+
+        The option is hidden unless the wave effect is active.
+        """
+        if not self._has_zone_capability(rdevice, zone, "wave_speed"):
+            return None
+
+        class WaveSpeedSlider(Backend.SliderOption):
+            SLOWEST = 0xA0
+            FASTEST = 0x08
+
+            def __init__(self, rzone, persistence):
+                super().__init__()
+                self._rzone = rzone
+                self._persistence = persistence
+                self.uid = "wave_speed"
+                self.min = 0
+                self.max = 100
+                self.step = 1
+                self.suffix = "%"
+                self.suffix_plural = "%"
+
+            def refresh(self):
+                self.hidden = self._persistence.state["effect"] != "wave"
+                speed = int(self._rzone.wave_speed)
+                percent = round((self.SLOWEST - speed) * 100 / (self.SLOWEST - self.FASTEST))
+                self.value = max(self.min, min(self.max, percent))
+
+            def apply(self, new_value):
+                speed = self.SLOWEST - int(new_value) * (self.SLOWEST - self.FASTEST) / 100
+                self._rzone.wave_speed = int(round(speed))
+
+        slider = WaveSpeedSlider(self._map_zone_id_to_rzone(rdevice, zone), zone._persistence)
+        slider.label = self._("Wave Speed")
+        slider.icon = self.get_icon("options", "wave")
+        return slider
 
     def _get_effect_options(self, rdevice, zone):
         """
